@@ -1,0 +1,16 @@
+# /usr/bin/socat TCP4-LISTEN:80,fork,reuseaddr,bind=127.0.0.1 TCP:129.168.122.17:4242
+
+[Example1]
+	srcport = 4242
+	srcproto = "TCP4-LISTEN"
+	srcflags = ["fork", "bind=127.0.0.1", "reuseaddr"]
+	dsthost = "192.168.122.17"
+	dstport = 4242
+	dstproto = "TCP4"
+
+
+# /usr/bin/socat TCP4-LISTEN:8080,fork,reuseaddr TCP4:localhost:8081
+[Example2]
+	srcport = 8080
+	dstport = 8081
+	
