@@ -56,6 +56,7 @@ func NewService() (s *Service) {
 
 func (s *Service) Start() {
 	if s.State == RUNNING {
+		log.Println(s.Name, "was already RUNNING")
 		return
 	}
 
@@ -77,6 +78,8 @@ func (s *Service) Start() {
 	s.restart = true
 
 	go s.run()
+
+	<-time.NewTimer(time.Millisecond * 250).C
 }
 
 func (s *Service) run() {
@@ -90,9 +93,9 @@ func (s *Service) run() {
 			log.Fatal(err)
 		}
 		log.Println(s.Name, s.cmd.Args)
+
 		err = s.cmd.Wait()
-		log.Println(s.Name, err)
-		<-time.NewTimer(time.Second * 3).C
+		log.Println(s.Name, "finihed:", err)
 		s.State = STOPPED
 	}
 }

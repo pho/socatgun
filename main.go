@@ -6,10 +6,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"golang.org/x/exp/inotify"
 )
 
 func main() {
@@ -19,13 +21,59 @@ func main() {
 
 	findSocatBinary()
 
+	services := parseConfig(*configFile)
+
+	for _, s := range services {
+		if !s.Enabled {
+			log.Println(fmt.Sprintf("Service %s is disabled", s.Name))
+		} else {
+			s.Start()
+		}
+	}
+
+	var watch *inotify.Watcher
+	var err error
+	if watch, err = inotify.NewWatcher(); err != nil {
+		log.Println(fmt.Sprintf("Could not create a watcher: %s. Changes will need a restart to become effective", err))
+	} else {
+		setWatch(watch, filepath.Dir(*configFile))
+	}
+
+	for {
+		select {
+		case ev := <-watch.Event:
+			if filepath.Base(ev.Name) == *configFile {
+				log.Println("Change on the config file detected. Reloading services...")
+
+				unsetWatch(watch, filepath.Dir(*configFile))
+
+				for _, s := range services {
+					s.Stop()
+				}
+
+				<-time.NewTimer(time.Millisecond * 500).C
+				services = parseConfig(*configFile)
+
+				for _, s := range services {
+					if !s.Enabled {
+						log.Println(fmt.Sprintf("Service %s is disabled", s.Name))
+					} else {
+						s.Start()
+					}
+				}
+				setWatch(watch, filepath.Dir(*configFile))
+			}
+		}
+	}
+}
+
+func parseConfig(configFile string) map[string]*Service {
 	var config Services
 	var md toml.MetaData
 	var err error
-	if md, err = toml.DecodeFile(*configFile, &config); err != nil {
+	if md, err = toml.DecodeFile(configFile, &config); err != nil {
 		log.Fatal(err)
 	}
-
 	services := make(map[string]*Service)
 
 	for name, serv := range config {
@@ -58,18 +106,17 @@ func main() {
 	}
 
 	log.Println("Found", len(services), "services")
+	return services
+}
 
-	for _, s := range services {
-		if !s.Enabled {
-			log.Println(fmt.Sprintf("Service %s is disabled", s.Name))
-		} else {
-			s.Start()
-		}
+func setWatch(watch *inotify.Watcher, path string) {
+	if err := watch.AddWatch(path, inotify.IN_MODIFY); err != nil {
+		log.Println(fmt.Sprintf("Error %s setting a watcher on the config file. Changes will need a restart to become effective", err))
 	}
+}
 
-	for {
-		<-time.NewTimer(time.Hour).C
-	}
+func unsetWatch(watch *inotify.Watcher, path string) {
+	watch.RemoveWatch(path)
 }
 
 func findSocatBinary() {
