@@ -18,8 +18,9 @@ const (
 type Services map[string]Service
 
 type Service struct {
-	Name  string
-	State int
+	Name    string
+	Enabled bool
+	State   int
 
 	Srcport  int      `toml:"srcport"`
 	Srcflags []string `toml:"srcflags"`
@@ -39,6 +40,7 @@ func NewService() (s *Service) {
 
 	s.cmdArgs = make([]string, 2)
 	s.State = STOPPED
+	s.Enabled = true
 	s.restart = false
 
 	s.Srcport = 80

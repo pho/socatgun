@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -49,6 +50,8 @@ func main() {
 					s.Dstproto = serv.Dstproto
 				case "dstport":
 					s.Dstport = serv.Dstport
+				case "enabled":
+					s.Enabled = serv.Enabled
 				}
 			}
 		}
@@ -57,7 +60,11 @@ func main() {
 	log.Println("Found", len(services), "services")
 
 	for _, s := range services {
-		s.Start()
+		if !s.Enabled {
+			log.Println(fmt.Sprintf("Service %s is disabled", s.Name))
+		} else {
+			s.Start()
+		}
 	}
 
 	for {
